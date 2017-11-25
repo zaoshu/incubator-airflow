@@ -89,8 +89,13 @@ class _DataflowJob(LoggingMixin):
 
 class _Dataflow(LoggingMixin):
     def __init__(self, cmd):
-        self._proc = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE,
-                                      stderr=subprocess.PIPE)
+        self.log.info("Running command: %s", ' '.join(cmd))
+        self._proc = subprocess.Popen(
+            cmd,
+            shell=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            close_fds=True)
 
     def _line(self, fd):
         if fd == self._proc.stderr.fileno():
