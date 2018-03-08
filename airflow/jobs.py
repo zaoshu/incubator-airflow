@@ -802,12 +802,7 @@ class SchedulerJob(BaseJob):
                 # one period before, so that datetime.utcnow() is AFTER
                 # the period end, and the job can be created...
                 now = datetime.utcnow()
-                next_start = dag.following_schedule(now)
-                last_start = dag.previous_schedule(now)
-                if next_start <= now:
-                    new_start = last_start
-                else:
-                    new_start = dag.previous_schedule(last_start)
+                new_start = dag.previous_schedule(now)
 
                 if dag.start_date:
                     if new_start >= dag.start_date:
