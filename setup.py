@@ -198,7 +198,7 @@ devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docke
 def do_setup():
     write_version()
     setup(
-        name='apache-airflow',
+        name='zs-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
         license='Apache License 2.0',
         version=version,
