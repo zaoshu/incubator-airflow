@@ -238,6 +238,7 @@ def do_setup():
             'tabulate>=0.7.5, <0.8.0',
             'thrift>=0.9.2',
             'zope.deprecation>=4.0, <5.0',
+            'py_logging',
         ],
         extras_require={
             'all': devel_all,
