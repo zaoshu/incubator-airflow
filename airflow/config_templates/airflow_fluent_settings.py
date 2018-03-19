@@ -14,53 +14,24 @@
 
 import logging
 import os
-import sys
 
 import py_logging
-import requests
 from airflow import configuration as conf
-from airflow.configuration import AirflowConfigException
-from airflow.utils.file import mkdirs
 from fluent import asynchandler
-from jinja2 import Template
 
 LOG_LEVEL = conf.get('core', 'LOGGING_LEVEL').upper()
-LOG_FORMAT = conf.get('core', 'log_format')
-
-BASE_LOG_FOLDER = conf.get('core', 'BASE_LOG_FOLDER')
-PROCESSOR_LOG_FOLDER = conf.get('scheduler', 'child_process_log_directory')
-
-FILENAME_TEMPLATE = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log'
-PROCESSOR_FILENAME_TEMPLATE = '{{ filename }}.log'
-
 DEFAULT_LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': False,
-    'formatters': {
-        'airflow.task': {
-            'format': LOG_FORMAT,
-        },
-        'airflow.processor': {
-            'format': LOG_FORMAT,
-        },
-        'custom': {
-            'class': 'py_logging.JSONFormatter',
-        }
-    },
     'handlers': {
         'console': {
             'class': 'airflow.config_templates.airflow_fluent_settings.FluentHandler',
-            # 'formatter': 'airflow.task',
-            # 'stream': 'ext://sys.stdout'
         },
         'file.task': {
             'class': 'airflow.config_templates.airflow_fluent_settings.FluentHandler',
         },
         'file.processor': {
             'class': 'airflow.config_templates.airflow_fluent_settings.FluentHandler',
-            # 'formatter': 'airflow.processor',
-            'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
-            'filename_template': PROCESSOR_FILENAME_TEMPLATE,
         },
     },
     'loggers': {
@@ -101,12 +72,22 @@ class FluentHandler(logging.Handler):
     def set_context(self, ti):
         """ti task instance
         """
-        pro_id = self._get_project_id(ti.dag_id)
+        host = self.env.get('FLUENTD_HOST')
+        port = self.env.get('FLUENTD_PORT')
+        job = None
+        dr = ti.get_dagrun()
+        if dr:
+            job = dr.run_id
+
+        project = self._get_project_id(ti.dag_id)
+        kwargs = {'project': project, 'task': ti.dag_id,
+                  'subtask': ti.task_id, 'job': job}
+
         fd_handler = asynchandler.FluentHandler(
-            '%s.%s' % (self.env, pro_id), host=self.env.get('fluentd_host'), port=self.env.get('fluentd_port'),
+            '%s.%s' % (self.env, project), host=host, port=port,
         )
         fd_handler.setLevel(self.level)
-        fd_handler.setFormatter(py_logging.JSONFormatter(project=pro_id))
+        fd_handler.setFormatter(py_logging.JSONFormatter(**kwargs))
         self.handler = fd_handler
 
     def emit(self, record):
