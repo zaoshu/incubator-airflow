@@ -45,41 +45,23 @@ DEFAULT_LOGGING_CONFIG = {
         },
         'custom': {
             'class': 'py_logging.JSONFormatter',
-            'format': '',
         }
     },
     'handlers': {
         'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout'
+            'class': 'airflow.config_templates.airflow_fluent_settings.FluentHandler',
+            # 'formatter': 'airflow.task',
+            # 'stream': 'ext://sys.stdout'
         },
         'file.task': {
-            'class': 'airflow.utils.log.airflow_zsformatter_settings.ZSFormatHandler',
+            'class': 'airflow.config_templates.airflow_fluent_settings.FluentHandler',
         },
         'file.processor': {
-            'class': 'airflow.utils.log.file_processor_handler.FileProcessorHandler',
-            'formatter': 'airflow.processor',
+            'class': 'airflow.config_templates.airflow_fluent_settings.FluentHandler',
+            # 'formatter': 'airflow.processor',
             'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
             'filename_template': PROCESSOR_FILENAME_TEMPLATE,
-        }
-        # When using s3 or gcs, provide a customized LOGGING_CONFIG
-        # in airflow_local_settings within your PYTHONPATH, see UPDATING.md
-        # for details
-        # 's3.task': {
-        #     'class': 'airflow.utils.log.s3_task_handler.S3TaskHandler',
-        #     'formatter': 'airflow.task',
-        #     'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-        #     's3_log_folder': S3_LOG_FOLDER,
-        #     'filename_template': FILENAME_TEMPLATE,
-        # },
-        # 'gcs.task': {
-        #     'class': 'airflow.utils.log.gcs_task_handler.GCSTaskHandler',
-        #     'formatter': 'airflow.task',
-        #     'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-        #     'gcs_log_folder': GCS_LOG_FOLDER,
-        #     'filename_template': FILENAME_TEMPLATE,
-        # },
+        },
     },
     'loggers': {
         '': {
@@ -110,18 +92,16 @@ DEFAULT_LOGGING_CONFIG = {
 }
 
 
-class ZSFormatHandler(logging.Handler):
+class FluentHandler(logging.Handler):
     def __init__(self):
-        super(ZSFormatHandler, self).__init__()
+        super(FluentHandler, self).__init__()
         self.handler = None
         self.env = os.environ
 
     def set_context(self, ti):
         """ti task instance
         """
-        print('***___________________-%s' % ti.dag_id)
         pro_id = self._get_project_id(ti.dag_id)
-        print('***___________________ pro_id: %s' % pro_id)
         fd_handler = asynchandler.FluentHandler(
             '%s.%s' % (self.env, pro_id), host=self.env.get('fluentd_host'), port=self.env.get('fluentd_port'),
         )
