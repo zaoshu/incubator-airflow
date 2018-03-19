@@ -33,6 +33,9 @@ DEFAULT_LOGGING_CONFIG = {
         'file.processor': {
             'class': 'airflow.config_templates.airflow_fluent_settings.FluentHandler',
         },
+        'default.processor': {
+            'class': 'airflow.config_templates.airflow_fluent_settings.FluentDefaultHandler',
+        },
     },
     'loggers': {
         '': {
@@ -55,7 +58,22 @@ DEFAULT_LOGGING_CONFIG = {
             'propagate': False,
         },
         'airflow.task_runner': {
-            'handlers': ['file.task'],
+            'handlers': ['default.processor'],
+            'level': LOG_LEVEL,
+            'propagate': True,
+        },
+        'airflow.operators': {
+            'handlers': ['default.processor'],
+            'level': LOG_LEVEL,
+            'propagate': True,
+        },
+        'airflow.models': {
+            'handlers': ['default.processor'],
+            'level': LOG_LEVEL,
+            'propagate': True,
+        },
+        'airflow.jobs': {
+            'handlers': ['default.processor'],
             'level': LOG_LEVEL,
             'propagate': True,
         },
@@ -72,19 +90,24 @@ class FluentHandler(logging.Handler):
     def set_context(self, ti):
         """ti task instance
         """
-        host = self.env.get('FLUENTD_HOST')
+        host = self.env.get('FLUENTD_HOST', 'localhost')
         port = self.env.get('FLUENTD_PORT')
+        try:
+            port = int(port)
+        except:
+            port = 24224
+
         job = None
         dr = ti.get_dagrun()
         if dr:
             job = dr.run_id
 
         project = self._get_project_id(ti.dag_id)
-        kwargs = {'project': project, 'task': ti.dag_id,
+        kwargs = {'project': project, 'task': self._get_task_id(ti.dag_id),
                   'subtask': ti.task_id, 'job': job}
 
         fd_handler = asynchandler.FluentHandler(
-            '%s.%s' % (self.env, project), host=host, port=port,
+            '%s.%s' % (self.env.get('ENV', 'dev'), project), host=host, port=port,
         )
         fd_handler.setLevel(self.level)
         fd_handler.setFormatter(py_logging.JSONFormatter(**kwargs))
@@ -106,3 +129,43 @@ class FluentHandler(logging.Handler):
         ids = dag_id.split('__')
         if len(ids) >= 2 and ids[-1] != '':
             return ids[1]
+        else:
+            return ""
+
+    def _get_task_id(self, dag_id):
+        ids = dag_id.split('__')
+        if len(ids) >= 3 and ids[-1] != '':
+            return ids[2]
+        else:
+            return ""
+
+
+class FluentDefaultHandler(logging.Handler):
+    def __init__(self):
+        super(FluentDefaultHandler, self).__init__()
+        self.env = os.environ
+        host = self.env.get('FLUENTD_HOST', 'localhost')
+        port = self.env.get('FLUENTD_PORT')
+        try:
+            port = int(port)
+        except:
+            port = 24224
+
+        fd_handler = asynchandler.FluentHandler(
+            '%s.%s' % (self.env.get('ENV', 'dev'), ''), host=host, port=port,
+        )
+        fd_handler.setLevel(self.level)
+        fd_handler.setFormatter(py_logging.JSONFormatter())
+        self.handler = fd_handler
+
+    def emit(self, record):
+        if self.handler is not None:
+            self.handler.emit(record)
+
+    def flush(self):
+        if self.handler is not None:
+            self.handler.flush()
+
+    def close(self):
+        if self.handler is not None:
+            self.handler.close()
