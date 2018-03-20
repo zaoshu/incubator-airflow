@@ -16,11 +16,22 @@
 from airflow import configuration as conf
 
 LOG_LEVEL = conf.get('core', 'LOGGING_LEVEL').upper()
+LOG_FORMAT = conf.get('core', 'log_format')
 
 DEFAULT_LOGGING_CONFIG = {
     'version': 1,
     'disable_existing_loggers': False,
+    'formatters': {
+        'console': {
+            'format': LOG_FORMAT,
+        },
+    },
     'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'console',
+            'stream': 'ext://sys.stdout'
+        },
         'text': {
             'class': 'airflow.zs.log.handler.TextFluentHandler',
         },
@@ -30,7 +41,7 @@ DEFAULT_LOGGING_CONFIG = {
     },
     'loggers': {
         '': {
-            'handlers': ['text'],
+            'handlers': ['console'],
             'level': LOG_LEVEL
         },
         'airflow': {
