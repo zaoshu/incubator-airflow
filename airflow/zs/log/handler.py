@@ -6,6 +6,7 @@ import os
 
 import py_logging
 from fluent import asynchandler
+from airflow.zs import utils
 
 
 def _load_config_from_env():
@@ -40,7 +41,7 @@ class TaskFluentHandler(logging.Handler):
         if dr:
             job = dr.run_id
 
-        project, task = self._parse_project_and_task(ti.dag_id)
+        project, task = utils.parse_project_and_task_from_dag_id(ti.dag_id)
         kwargs = {
             'project': project,
             'task': task,
@@ -63,16 +64,6 @@ class TaskFluentHandler(logging.Handler):
     def close(self):
         if self.handler is not None:
             self.handler.close()
-
-    @staticmethod
-    def _parse_project_and_task(dag_id):
-        ids = dag_id.split('__')
-        if len(ids) >= 3:
-            return ids[1], ids[2]
-        elif len(ids) == 2:
-            return ids[1], ''
-        else:
-            return '', ''
 
 
 class TextFluentHandler(logging.Handler):
