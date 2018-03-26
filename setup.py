@@ -124,7 +124,7 @@ doc = [
     'sphinx-rtd-theme>=0.1.6',
     'Sphinx-PyPI-upload>=0.2.1'
 ]
-docker = ['docker-py>=1.6.0']
+docker = ['docker>=3.1.4']
 emr = ['boto3>=1.0.0']
 gcp_api = [
     'httplib2',
@@ -194,6 +194,9 @@ devel_minreq = devel + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker + ssh
 
+zs = [
+    'py_logging',
+]
 
 def do_setup():
     write_version()
@@ -238,7 +241,6 @@ def do_setup():
             'tabulate>=0.7.5, <0.8.0',
             'thrift>=0.9.2',
             'zope.deprecation>=4.0, <5.0',
-            'py_logging',
         ],
         extras_require={
             'all': devel_all,
@@ -281,6 +283,7 @@ def do_setup():
             'webhdfs': webhdfs,
             'jira': jira,
             'redis': redis,
+            'zs': zs,
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',

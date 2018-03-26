@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from docker import Client
+from docker import DockerClient
 from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
@@ -55,7 +55,7 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__reauth = False if extra_options.get('reauth') == 'no' else True
 
     def get_conn(self):
-        client = Client(
+        client = DockerClient(
             base_url=self.__base_url,
             version=self.__version,
             tls=self.__tls
