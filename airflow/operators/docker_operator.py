@@ -90,14 +90,14 @@ class DockerOperator(BaseOperator):
     :param docker_conn_id: ID of the Airflow connection to use
     :type docker_conn_id: str
     """
-    template_fields = ('command', 'environment',)
+    template_fields = ('command', 'environment', 'docker_url')
     template_ext = ('.sh', '.bash',)
 
     @apply_defaults
     def __init__(
         self,
         image,
-        api_version=None,
+        api_version='auto',
         command=None,
         cpus=1.0,
         docker_url='unix://var/run/docker.sock',
@@ -177,9 +177,7 @@ class DockerOperator(BaseOperator):
 
         if self.force_pull or not self.__image_exists(image):
             self.log.info('Pulling docker image %s', image)
-            for l in self.cli.images.pull(image, stream=True):
-                output = json.loads(l.decode('utf-8'))
-                self.log.info("%s", output['status'])
+            self.cli.images.pull(image, stream=True)
 
         cpu_shares = int(round(self.cpus * 1024))
 
