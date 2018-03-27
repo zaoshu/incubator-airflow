@@ -20,21 +20,24 @@
 
 {% block body %}
   {{ super() }}
-  <h4>{{ title }}</h4>
-  <ul class="nav nav-pills" role="tablist">
-    {% for log in logs %}
-      <li role="presentation" class="{{ 'active' if loop.last else '' }}">
-        <a href="#{{ loop.index }}" aria-controls="{{ loop.index }}" role="tab" data-toggle="tab">
-          {{ loop.index }}
-        </a>
-      </li>
-    {% endfor %}
-  </ul>
-  <div class="tab-content">
-    {% for log in logs %}
-      <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
-        <pre id="attempt-{{ loop.index }}">{{ log }}</pre>
-      </div>
-    {% endfor %}
+  <!--<h4>{{ title }}</h4>-->
+  <!--<ul class="nav nav-pills" role="tablist">-->
+    <!--{% for log in logs %}-->
+      <!--<li role="presentation" class="{{ 'active' if loop.last else '' }}">-->
+        <!--<a href="#{{ loop.index }}" aria-controls="{{ loop.index }}" role="tab" data-toggle="tab">-->
+          <!--{{ loop.index }}-->
+        <!--</a>-->
+      <!--</li>-->
+    <!--{% endfor %}-->
+  <!--</ul>-->
+  <!--<div class="tab-content">-->
+    <!--{% for log in logs %}-->
+      <!--<div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">-->
+        <!--<pre id="attempt-{{ loop.index }}">{{ log }}</pre>-->
+      <!--</div>-->
+    <!--{% endfor %}-->
+  <!--</div>-->
+  <div class="row">
+    <iframe width="100%" height="100%" style="position:absolute;" src="{{ kibana_url }}" frameborder="0"></iframe>
   </div>
 {% endblock %}

@@ -79,6 +79,8 @@ from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 from airflow.www.validators import GreaterEqualThan
+from airflow.zs import utils
+from airflow import configuration
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
@@ -695,33 +697,67 @@ class Airflow(BaseView):
         dttm = dateutil.parser.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         dag = dagbag.get_dag(dag_id)
+
+        project, task = utils.parse_project_and_task_from_dag_id(dag_id)
+        job = None
+        start_date = None
+        end_date = None
+
         session = Session()
         ti = session.query(models.TaskInstance).filter(
             models.TaskInstance.dag_id == dag_id,
             models.TaskInstance.task_id == task_id,
             models.TaskInstance.execution_date == dttm).first()
-        if ti is None:
-            logs = ["*** Task instance did not exist in the DB\n"]
-        else:
-            logger = logging.getLogger('airflow.task')
-            task_log_reader = conf.get('core', 'task_log_reader')
-            handler = next((handler for handler in logger.handlers
-                            if handler.name == task_log_reader), None)
-            try:
-                ti.task = dag.get_task(ti.task_id)
-                logs = handler.read(ti)
-            except AttributeError as e:
-                logs = ["Task log handler {} does not support read logs.\n{}\n" \
-                            .format(task_log_reader, str(e))]
+        if ti:
+            start_date = ti.start_date
+            end_date = ti.end_date
+            dr = ti.get_dagrun()
+            if dr:
+                job = dr.run_id
 
-        for i, log in enumerate(logs):
-            if PY2 and not isinstance(log, unicode):
-                logs[i] = log.decode('utf-8')
-
+        kibana_url = self._gen_kibana_url(host=configuration.get('webserver', 'kibana_url'),
+                                          start_date=start_date, end_date=end_date,
+                                          env=os.getenv('ZS_ENV', 'dev'),
+                                          project=project, task=task, subtask=task_id, job=job)
         return self.render(
             'airflow/ti_log.html',
-            logs=logs, dag=dag, title="Log by attempts", task_id=task_id,
+            logs=[], dag=dag, title="Log by attempts", task_id=task_id,
+            kibana_url=kibana_url,
             execution_date=execution_date, form=form)
+
+    @staticmethod
+    def _gen_kibana_url(host='', start_date=None, end_date=None,
+                        env=None, project=None, task=None, subtask=None, job=None):
+        if not start_date and not end_date:
+            end_date = datetime.utcnow()
+            start_date = end_date - timedelta(minutes=30)
+        elif not start_date:
+            start_date = end_date - timedelta(minutes=30)
+        elif not end_date:
+            end_date = datetime.utcnow()
+        start_date = start_date - timedelta(seconds=10)
+        end_date = end_date + timedelta(seconds=10)
+
+        t = "refreshInterval:(display:Off,pause:!f,value:0),time:(from:'%s',mode:absolute,to:'%s')" % (
+            start_date.replace(microsecond=0).isoformat() + 'Z',
+            end_date.replace(microsecond=0).isoformat() + 'Z',
+        )
+
+        filters = []
+        if env:
+            filters.append(('env', env))
+        if project:
+            filters.append(('log_project', project))
+        if task:
+            filters.append(('log_task', task))
+        if subtask:
+            filters.append(('log_subtask', subtask))
+        if job:
+            filters.append(('log_job', job))
+
+        filter_tpl = "('$state':(store:appState),meta:(alias:!n,disabled:!f,key:'{0}',negate:!f,params:(query:'{0}',type:phrase),type:phrase,value:'{1}'),query:(match:('{0}':(query:'{1}',type:phrase))))"
+        return "%s/app/kibana#/discover?_g=(%s)&_a=(columns:!(log_msg),filters:!(%s),interval:auto,query:(language:lucene,query:''),sort:!('@timestamp',desc))" % (
+            host, t, ','.join(filter_tpl.format(*v) for v in filters))
 
     @expose('/task')
     @login_required
