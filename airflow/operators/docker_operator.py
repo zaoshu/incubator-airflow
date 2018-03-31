@@ -177,7 +177,7 @@ class DockerOperator(BaseOperator):
 
         if self.force_pull or not self.__image_exists(image):
             self.log.info('Pulling docker image %s', image)
-            self.cli.images.pull(image, stream=True)
+            self.cli.images.pull(image)
 
         cpu_shares = int(round(self.cpus * 1024))
 
